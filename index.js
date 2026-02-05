@@ -338,7 +338,7 @@ async function run() {
       );
 
       await notificationsCollection.insertOne({
-        message: `Your withdrawal of ${withdrawal.withdrawal_coin} coins has been approved.`,
+        message: `Your withdrawal of ${withdrawal.withdrawal_coin} coins has been approveds.`,
         toEmail: withdrawal.worker_email,
         time: new Date(),
       });
