@@ -77,7 +77,7 @@ async function run() {
       next();
     };
 
-    //  BEST WORKERS API
+    //  BEST WORKERS APIs
 
     app.get("/best-workers", async (req, res) => {
       try {
