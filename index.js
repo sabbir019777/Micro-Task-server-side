@@ -111,6 +111,7 @@ async function run() {
       res.send(result);
     });
 
+  
     app.get("/users/:email", verifyToken, async (req, res) => {
       const result = await usersCollection.findOne({ email: req.params.email });
       res.send(result);
@@ -359,6 +360,8 @@ async function run() {
       res.send({ totalTasks, pendingWorkers, totalPaid });
     });
 
+    
+    
     app.get("/worker-stats/:email", verifyToken, async (req, res) => {
       const email = req.params.email;
       const totalSubmissions = await submissionsCollection.countDocuments({ worker_email: email });
