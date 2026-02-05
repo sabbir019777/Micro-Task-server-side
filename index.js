@@ -292,7 +292,7 @@ async function run() {
       const payment = req.body;
       const price = parseFloat(payment.price);
       let coinsToAdd = 0;
-      if (price === 1) coinsToAdd = 10;
+      if (price === 1) coinsToAdd = 20;
       else if (price === 10) coinsToAdd = 150;
       else if (price === 20) coinsToAdd = 500;
       else if (price === 35) coinsToAdd = 1000;
