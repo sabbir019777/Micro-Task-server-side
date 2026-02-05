@@ -404,7 +404,7 @@ async function run() {
 
   
     await client.db("admin").command({ ping: 1 });
-    console.log("✅ Pinged your deployment. You successfully connected to MongoDB!");
+    console.log("✅ successfully connected to MongoDB!");
 
     app.get("/", (req, res) => {
       res.send("Micro-Task Server Running...");
