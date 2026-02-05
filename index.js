@@ -136,7 +136,7 @@ async function run() {
 
 
     
-    //  TASK & SUBMISSION MANAGEMENT
+    //  TASK & SUBMISSION MANAGEMENTS
 
     app.post("/tasks", verifyToken, async (req, res) => {
       const task = req.body;
