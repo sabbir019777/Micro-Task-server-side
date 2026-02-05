@@ -46,7 +46,7 @@ async function run() {
     const notificationsCollection = db.collection("notifications");
 
    
-    //  JWT & AUTHENTICATION
+    //  JWT & AUTHENTICATIONS
 
     app.post("/jwt", async (req, res) => {
       const user = req.body;
