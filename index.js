@@ -343,8 +343,9 @@ async function run() {
         time: new Date(),
       });
 
-      res.send({ message: "Withdrawal Approved" });
+      res.send({ message: "Withdrawal Approveds" });
     });
+
 
     app.get("/buyer-stats/:email", verifyToken, async (req, res) => {
       const email = req.params.email;
