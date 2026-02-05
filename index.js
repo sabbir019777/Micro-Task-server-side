@@ -275,7 +275,7 @@ async function run() {
     });
 
 
-    // 💳 PAYMENT & STATS
+    // 💳 PAYMENTS & STATS
   
     app.post("/create-payment-intent", verifyToken, async (req, res) => {
       const { price } = req.body;
