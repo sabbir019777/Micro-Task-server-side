@@ -94,7 +94,7 @@ async function run() {
     });
 
 
-    //  USER MANAGEMENT
+    //  USER MANAGEMENTS
 
     app.post("/users", async (req, res) => {
       const user = req.body;
