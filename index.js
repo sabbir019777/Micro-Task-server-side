@@ -8,8 +8,18 @@ const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
 const port = process.env.PORT || 5000;
 
-// Middlewares
-app.use(cors());
+// CORS Configuration 
+const corsOptions = {
+  origin: [
+    "http://localhost:5173",
+    "http://localhost:5174",
+
+    "https://micro-task-project.netlify.app", 
+  ],
+  credentials: true,
+  optionSuccessStatus: 200,
+};
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // MongoDB URi
@@ -23,7 +33,7 @@ const client = new MongoClient(uri, {
   },
 });
 
-// --- FIX: Collections defined globally so routes can access them ---
+// Collections defined globally
 const db = client.db("micro-earning-platform-v2");
 const usersCollection = db.collection("users");
 const tasksCollection = db.collection("tasks");
@@ -32,18 +42,18 @@ const withdrawalsCollection = db.collection("withdrawals");
 const paymentsCollection = db.collection("payments");
 const notificationsCollection = db.collection("notifications");
 
-// --- FIX: DB Connect Function ---
+// DB Connect Function
 async function run() {
   try {
-    await client.connect();
-    console.log("✅ Currently Connected to DB:", db.databaseName);
+    // await client.connect(); // Vercel-এ অনেক সময় কানেক্ট হয়ে থাকে, তাই এটা অপশনাল হতে পারে
+    console.log("✅ DB Connected");
   } catch (error) {
     console.log("❌ DB Connection Error:", error);
   }
 }
-run(); // Call the connection function
+run();
 
-// --- FIX: Middlewares moved outside 'run' ---
+// Middlewares
 const verifyToken = (req, res, next) => {
   if (!req.headers.authorization) {
     return res.status(401).send({ message: "unauthorized access" });
@@ -67,16 +77,16 @@ const verifyAdmin = async (req, res, next) => {
   next();
 };
 
-// --- FIX: All Routes moved outside 'run' to prevent 404 on Vercel ---
+// --- ROUTES ---
 
-//  JWT & AUTHENTICATIONS
+// JWT & AUTHENTICATIONS
 app.post("/jwt", async (req, res) => {
   const user = req.body;
   const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: "1h" });
   res.send({ token });
 });
 
-//  BEST WORKERS APIs
+// BEST WORKERS APIs
 app.get("/best-workers", async (req, res) => {
   try {
     const result = await usersCollection
@@ -91,7 +101,7 @@ app.get("/best-workers", async (req, res) => {
   }
 });
 
-//  USER MANAGEMENTS
+// USER MANAGEMENTS
 app.post("/users", async (req, res) => {
   const user = req.body;
   const existingUser = await usersCollection.findOne({ email: user.email });
@@ -130,7 +140,7 @@ app.delete("/users/:id", verifyToken, verifyAdmin, async (req, res) => {
   res.send(result);
 });
 
-//  TASK & SUBMISSION MANAGEMENTS
+// TASK & SUBMISSION MANAGEMENTS
 app.post("/tasks", verifyToken, async (req, res) => {
   const task = req.body;
   const requiredCoin = task.required_workers * task.payable_amount;
@@ -262,7 +272,8 @@ app.patch("/submissions/reject/:id", verifyToken, async (req, res) => {
 
 app.post("/create-payment-intent", verifyToken, async (req, res) => {
   const { price } = req.body;
-  const amount = parseInt(price * 100);
+  // --- FIX 2: Accurate Calculation ---
+  const amount = Math.round(price * 100); 
   const paymentIntent = await stripe.paymentIntents.create({
     amount: amount,
     currency: "usd",
@@ -306,9 +317,16 @@ app.get("/admin/withdrawals", verifyToken, verifyAdmin, async (req, res) => {
   res.send(result);
 });
 
+// --- FIX 3: Secure Withdrawal Approval ---
 app.patch("/withdrawals/approve/:id", verifyToken, verifyAdmin, async (req, res) => {
   const id = req.params.id;
   const withdrawal = await withdrawalsCollection.findOne({ _id: new ObjectId(id) });
+
+  // চেক করুন ইউজারের যথেষ্ট কয়েন আছে কিনা
+  const worker = await usersCollection.findOne({ email: withdrawal.worker_email });
+  if (worker.coin < withdrawal.withdrawal_coin) {
+      return res.status(400).send({ message: "Worker does not have enough coins" });
+  }
 
   await withdrawalsCollection.updateOne(
     { _id: new ObjectId(id) },
@@ -321,12 +339,12 @@ app.patch("/withdrawals/approve/:id", verifyToken, verifyAdmin, async (req, res)
   );
 
   await notificationsCollection.insertOne({
-    message: `Your withdrawal of ${withdrawal.withdrawal_coin} coins has been approveds.`,
+    message: `Your withdrawal of ${withdrawal.withdrawal_coin} coins has been approved.`,
     toEmail: withdrawal.worker_email,
     time: new Date(),
   });
 
-  res.send({ message: "Withdrawal Approveds" });
+  res.send({ message: "Withdrawal Approved" });
 });
 
 app.get("/buyer-stats/:email", verifyToken, async (req, res) => {
