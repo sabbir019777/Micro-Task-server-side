@@ -13,7 +13,6 @@ const corsOptions = {
   origin: [
     "http://localhost:5173",
     "http://localhost:5174",
-
     "https://micro-task-project.netlify.app", 
   ],
   credentials: true,
@@ -45,7 +44,7 @@ const notificationsCollection = db.collection("notifications");
 // DB Connect Function
 async function run() {
   try {
-    // await client.connect(); // Vercel-এ অনেক সময় কানেক্ট হয়ে থাকে, তাই এটা অপশনাল হতে পারে
+    // await client.connect(); 
     console.log("✅ DB Connected");
   } catch (error) {
     console.log("❌ DB Connection Error:", error);
@@ -77,7 +76,7 @@ const verifyAdmin = async (req, res, next) => {
   next();
 };
 
-// --- ROUTES ---
+
 
 // JWT & AUTHENTICATIONS
 app.post("/jwt", async (req, res) => {
@@ -268,11 +267,10 @@ app.patch("/submissions/reject/:id", verifyToken, async (req, res) => {
   res.send({ message: "rejected" });
 });
 
-// 💳 PAYMENTS & STATS
+//  PAYMENTS & STATS
 
 app.post("/create-payment-intent", verifyToken, async (req, res) => {
   const { price } = req.body;
-  // --- FIX 2: Accurate Calculation ---
   const amount = Math.round(price * 100); 
   const paymentIntent = await stripe.paymentIntents.create({
     amount: amount,
@@ -317,35 +315,70 @@ app.get("/admin/withdrawals", verifyToken, verifyAdmin, async (req, res) => {
   res.send(result);
 });
 
-// --- FIX 3: Secure Withdrawal Approval ---
+
 app.patch("/withdrawals/approve/:id", verifyToken, verifyAdmin, async (req, res) => {
-  const id = req.params.id;
-  const withdrawal = await withdrawalsCollection.findOne({ _id: new ObjectId(id) });
+  try {
+    const id = req.params.id;
 
-  // চেক করুন ইউজারের যথেষ্ট কয়েন আছে কিনা
-  const worker = await usersCollection.findOne({ email: withdrawal.worker_email });
-  if (worker.coin < withdrawal.withdrawal_coin) {
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).send({ message: "Invalid ID format" });
+    }
+
+    const withdrawal = await withdrawalsCollection.findOne({ _id: new ObjectId(id) });
+
+    if (!withdrawal) {
+        return res.status(404).send({ message: "Withdrawal request not found" });
+    }
+
+    const worker = await usersCollection.findOne({ email: withdrawal.worker_email });
+
+    if (!worker) {
+        return res.status(404).send({ message: "Worker account not found" });
+    }
+
+
+    const withdrawCoin = Number(withdrawal.withdrawal_coin);
+    const workerCoin = Number(worker.coin);
+
+    if (isNaN(withdrawCoin)) {
+        return res.status(400).send({ message: "Invalid coin amount in database" });
+    }
+
+
+    if (workerCoin < withdrawCoin) {
       return res.status(400).send({ message: "Worker does not have enough coins" });
+    }
+
+
+    const updateResult = await withdrawalsCollection.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: { status: "Approved" } }
+    );
+
+
+    const coinUpdate = await usersCollection.updateOne(
+      { email: withdrawal.worker_email },
+      { $inc: { coin: -withdrawCoin } }
+    );
+
+
+    await notificationsCollection.insertOne({
+      message: `Your withdrawal of ${withdrawCoin} coins has been approved.`,
+      toEmail: withdrawal.worker_email,
+      time: new Date(),
+    });
+
+    res.send({ 
+        message: "Withdrawal Approved", 
+        modifiedCount: updateResult.modifiedCount 
+    });
+
+  } catch (error) {
+    console.error("Approval Error:", error);
+    res.status(500).send({ message: "Internal Server Error", error: error.message });
   }
-
-  await withdrawalsCollection.updateOne(
-    { _id: new ObjectId(id) },
-    { $set: { status: "approved" } }
-  );
-
-  await usersCollection.updateOne(
-    { email: withdrawal.worker_email },
-    { $inc: { coin: -withdrawal.withdrawal_coin } }
-  );
-
-  await notificationsCollection.insertOne({
-    message: `Your withdrawal of ${withdrawal.withdrawal_coin} coins has been approved.`,
-    toEmail: withdrawal.worker_email,
-    time: new Date(),
-  });
-
-  res.send({ message: "Withdrawal Approved" });
 });
+// --- FIX END ---
 
 app.get("/buyer-stats/:email", verifyToken, async (req, res) => {
   const email = req.params.email;
@@ -409,5 +442,5 @@ app.get("/", (req, res) => {
 
 app.listen(port, () => console.log(`Server running on port ${port}`));
 
-// Vercel Export
+
 module.exports = app;
